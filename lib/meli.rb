@@ -36,8 +36,12 @@ class Meli
         url = "#{AUTH_URL}?#{to_url_params(params)}"
     end
 
-    def authorize(code, redirect_URI)
-        params = { :grant_type => 'authorization_code', :client_id => @app_id, :client_secret => @secret, :code => code, :redirect_uri => redirect_URI}
+    def auth(grant_type, params = {})
+        params.merge!({
+            :grant_type => grant_type,
+            :client_id => @app_id,
+            :client_secret => @secret,
+        })
 
         uri = make_path(OAUTH_URL, params)
 
@@ -51,56 +55,39 @@ class Meli
         case response
         when Net::HTTPSuccess
             response_info = JSON.parse response.body
+
             #convert hash keys to symbol
             response_info = Hash[response_info.map{ |k, v| [k.to_sym, v] }]
 
             @access_token = response_info[:access_token]
+
             if response_info.has_key?(:refresh_token)
                 @refresh_token = response_info[:refresh_token]
-            else
-                @refresh_token = '' # offline_access not set up
             end
-            @access_token
+
+            {
+                :access_token => @access_token,
+                :refresh_token => @refresh_token,
+                :expires_in => response_info[:refresh_token],
+                :date => response['date']
+            }
         else
             # response code isn't a 200; raise an exception
             response.error!
         end
+    end
 
+    def authorize(code, redirect_URI)
+        auth 'authorization_code', {:code => code, :redirect_uri => redirect_URI}
     end
 
     def get_refresh_token()
         if !@refresh_token.nil? and !@refresh_token.empty?
-            params = {:grant_type => 'refresh_token', :client_id => @app_id, :client_secret => @secret, :refresh_token => @refresh_token}
-
-            uri = make_path(OAUTH_URL, params)
-
-            req = Net::HTTP::Post.new(uri.path)
-            req['Accept'] = 'application/json'
-            req['User-Agent'] = SDK_VERSION
-            req['Content-Type'] = "application/x-www-form-urlencoded"
-            req.set_form_data(params)
-            response = @https.request(req)
-
-            case response
-            when Net::HTTPSuccess
-                response_info = JSON.parse response.body
-
-                #convert hash keys to symbol
-                response_info = Hash[response_info.map{ |k, v| [k.to_sym, v] }]
-
-                @access_token = response_info[:access_token]
-                @refresh_token = response_info[:refresh_token]
-
-                {:access_token => @access_token, :refresh_token => @refresh_token, :expires_in => response_info[:expires_in], :date => response['date']}
-            else
-                # response code isn't a 200; raise an exception
-                response.error!
-            end
+            auth 'refresh_token', {:refresh_token => @refresh_token}
         else
             raise "Offline-Access is not allowed."
         end
     end
-
 
     #REQUEST METHODS
     def execute(req)
