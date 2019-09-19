@@ -90,6 +90,8 @@ class Meli
 
                 @access_token = response_info[:access_token]
                 @refresh_token = response_info[:refresh_token]
+
+                {:access_token => @access_token, :refresh_token => @refresh_token, :expires_in => response_info[:expires_in], :date => response['date']}
             else
                 # response code isn't a 200; raise an exception
                 response.error!
