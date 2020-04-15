@@ -1,6 +1,6 @@
 # MercadoLibre's Ruby SDK
 
-This is the official Ruby SDK for MercadoLibre's Platform.
+This is a fork of the official Ruby SDK for MercadoLibre's Platform that simplifies authorization.
 
 ## How do I install it?
 
